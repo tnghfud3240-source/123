@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: snow-storage-app
+    runtime: node
+    plan: starter
+    buildCommand: cd frontend && npm ci && npm run build && cd ../backend && npm ci
+    startCommand: cd backend && npm run seed && npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.11.0
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATA_DIR
+        value: /var/data
+      - key: PORT
+        value: 4000
+    disk:
+      name: snow-storage-data
+      mountPath: /var/data
+      sizeGB: 1
