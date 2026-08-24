@@ -5,11 +5,14 @@ import { submitTransaction, submitConversion, submitSpray } from "../offline/syn
 
 const TYPE_OPTIONS = [
   { value: "in", label: "입고", color: "bg-emerald-600 active:bg-emerald-700" },
-  { value: "out", label: "출고", color: "bg-rose-600 active:bg-rose-700" },
+  { value: "out", label: "사용", color: "bg-rose-600 active:bg-rose-700" },
   { value: "convert", label: "전환", color: "bg-violet-600 active:bg-violet-700" },
 ];
 
 const IN_CATEGORY_ORDER = ["염화칼슘", "소금(제설용)"];
+
+// 실제 창고가 아니라 전환 목적지로만 쓰이는 가상 창고
+const VIRTUAL_WAREHOUSE_NAME = "현장염수분사장치";
 
 // 염화칼슘은 항상 염수(리터)로 고정 차감, 소금은 화면에서 선택한 형태로 톤 환산 차감
 const SPRAY_OPTIONS = [
@@ -66,14 +69,21 @@ export default function EntryForm() {
       setWarehouses(warehouseRes.data);
       const initialBranchId = isField ? user.branch_id : visibleBranches[0]?.id || "";
       setBranchId(String(initialBranchId || ""));
-      const firstWarehouse = warehouseRes.data.find((w) => String(w.branch_id) === String(initialBranchId));
+      const firstWarehouse = warehouseRes.data.find(
+        (w) => String(w.branch_id) === String(initialBranchId) && w.name !== VIRTUAL_WAREHOUSE_NAME
+      );
       setWarehouseId(String(firstWarehouse?.id || ""));
     });
     client.get("/items").then((res) => setItems(res.data));
   }, [user]);
 
+  // "현장염수분사장치"는 실제 창고가 아니라 전환 시 목적지로만 쓰이는 가상 창고이므로
+  // 입고/사용/전환 전(前) 창고로는 선택할 수 없게 한다.
   const warehousesInBranch = useMemo(
-    () => warehouses.filter((w) => String(w.branch_id) === String(branchId)),
+    () =>
+      warehouses.filter(
+        (w) => String(w.branch_id) === String(branchId) && w.name !== VIRTUAL_WAREHOUSE_NAME
+      ),
     [warehouses, branchId]
   );
 
@@ -166,12 +176,10 @@ export default function EntryForm() {
 
   useEffect(() => {
     if (type !== "convert") return;
-    if (!toItemOptions.some((it) => String(it.id) === toItemId)) {
-      // 처음 고를 때는 전환 전과 다른 형태를 기본값으로 제안한다.
-      const other = toItemOptions.find((it) => it.id !== fromItem?.id);
-      setToItemId(String(other?.id || toItemOptions[0]?.id || ""));
-    }
-  }, [type, toItemOptions, toItemId, fromItem]);
+    // 전환 후 형태의 기본값은 전환 전과 동일하게 제안한다(형태는 그대로 두고
+    // 창고/지사만 옮기는 경우가 많으며, 형태를 바꾸고 싶으면 직접 선택하면 된다).
+    setToItemId(String(fromItemId || ""));
+  }, [type, fromItemId]);
 
   // 전환 목적지: 기본값은 전환 전(소스) 지사/창고와 동일하되, 다른 지사/창고(또는
   // 현장염수분사장치)로 자유롭게 바꿀 수 있다.
@@ -457,7 +465,7 @@ export default function EntryForm() {
 
             {sprayPreview && (
               <p className="text-sm text-slate-500 text-center">
-                → 출고 예정{" "}
+                → 사용 예정{" "}
                 <span className="font-semibold text-rose-700">
                   염화칼슘(염수) {sprayPreview.calciumQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}{" "}
                   {brineItem?.unit || "리터"}

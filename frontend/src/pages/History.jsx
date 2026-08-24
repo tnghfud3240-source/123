@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import client from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
-const TYPE_LABEL = { in: "입고", out: "출고", adjust: "조정", convert: "전환" };
+const TYPE_LABEL = { in: "입고", out: "사용", adjust: "조정", convert: "전환" };
 const TYPE_STYLE = {
   in: "bg-emerald-100 text-emerald-700",
   out: "bg-rose-100 text-rose-700",
@@ -82,7 +82,7 @@ export default function History() {
         >
           <option value="">전체 유형</option>
           <option value="in">입고</option>
-          <option value="out">출고</option>
+          <option value="out">사용</option>
           <option value="adjust">조정</option>
           <option value="convert">전환</option>
         </select>

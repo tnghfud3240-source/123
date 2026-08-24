@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import client from "../api/client.js";
 
-const TYPE_LABEL = { in: "입고", out: "출고", adjust: "조정", convert: "전환" };
+const TYPE_LABEL = { in: "입고", out: "사용", adjust: "조정", convert: "전환" };
 
 function StatCard({ label, value, accent }) {
   return (
