@@ -1,6 +1,5 @@
 const express = require("express");
 const db = require("../db");
-const { requireAuth, effectiveBranchId, canAccessWarehouse } = require("../auth");
 
 const router = express.Router();
 
@@ -11,8 +10,8 @@ function computeDelta(type, quantity) {
   return q; // adjust: signed값 그대로
 }
 
-function insertTransaction(tx, userId) {
-  const { client_id, warehouse_id, item_id, type, quantity, memo, occurred_at } = tx;
+function insertTransaction(tx) {
+  const { client_id, warehouse_id, item_id, type, quantity, memo, operator_name, occurred_at } = tx;
   if (!client_id || !warehouse_id || !item_id || !type || quantity == null || !occurred_at) {
     return { error: "필수 항목이 누락되었습니다.", client_id };
   }
@@ -32,7 +31,7 @@ function insertTransaction(tx, userId) {
     const info = db
       .prepare(
         `INSERT INTO transactions
-          (client_id, warehouse_id, item_id, type, quantity, delta, memo, user_id, occurred_at)
+          (client_id, warehouse_id, item_id, type, quantity, delta, memo, operator_name, occurred_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
@@ -43,7 +42,7 @@ function insertTransaction(tx, userId) {
         Math.abs(Number(quantity)),
         delta,
         memo || null,
-        userId,
+        operator_name || null,
         occurred_at
       );
     return {
@@ -58,7 +57,7 @@ function insertTransaction(tx, userId) {
 // 전환: 같은 카테고리 내에서 형태만 바꿔 재기록(예: 톤백 -> 개포). 목적지 창고를
 // 출발 창고와 다르게 지정하면(타지사 포함) 형태 변경과 동시에 재고 이동도 된다.
 // 톤 환산 총량은 변하지 않고, 두 개의 ledger row(감소/증가)로 기록한다.
-function insertConversion(payload, userId) {
+function insertConversion(payload) {
   const {
     client_id,
     warehouse_id,
@@ -67,6 +66,7 @@ function insertConversion(payload, userId) {
     to_item_id,
     quantity,
     memo,
+    operator_name,
     occurred_at,
   } = payload;
   const destWarehouseId = to_warehouse_id || warehouse_id;
@@ -108,17 +108,17 @@ function insertConversion(payload, userId) {
     const infoFrom = db
       .prepare(
         `INSERT INTO transactions
-          (client_id, warehouse_id, item_id, type, quantity, delta, memo, user_id, occurred_at)
+          (client_id, warehouse_id, item_id, type, quantity, delta, memo, operator_name, occurred_at)
          VALUES (?, ?, ?, 'convert', ?, ?, ?, ?, ?)`
       )
-      .run(fromClientId, warehouse_id, from_item_id, fromQty, -fromQty, memo || null, userId, occurred_at);
+      .run(fromClientId, warehouse_id, from_item_id, fromQty, -fromQty, memo || null, operator_name || null, occurred_at);
     const infoTo = db
       .prepare(
         `INSERT INTO transactions
-          (client_id, warehouse_id, item_id, type, quantity, delta, memo, user_id, occurred_at)
+          (client_id, warehouse_id, item_id, type, quantity, delta, memo, operator_name, occurred_at)
          VALUES (?, ?, ?, 'convert', ?, ?, ?, ?, ?)`
       )
-      .run(`${client_id}:to`, destWarehouseId, to_item_id, toQty, toQty, memo || null, userId, occurred_at);
+      .run(`${client_id}:to`, destWarehouseId, to_item_id, toQty, toQty, memo || null, operator_name || null, occurred_at);
     db.exec("COMMIT");
     return {
       status: "created",
@@ -140,8 +140,8 @@ const SPRAY_LABELS = { preliminary: "예비살포", main: "본살포" };
 const SPRAY_CALCIUM_BRINE_LITERS = { preliminary: 1500, main: 3000 };
 const SPRAY_SALT_TONS_PER_UNIT = { preliminary: 4, main: 8 };
 
-function insertSpray(payload, userId) {
-  const { client_id, warehouse_id, spray_type, count, salt_item_id, memo, occurred_at } = payload;
+function insertSpray(payload) {
+  const { client_id, warehouse_id, spray_type, count, salt_item_id, memo, operator_name, occurred_at } = payload;
   if (!client_id || !warehouse_id || !spray_type || count == null || !salt_item_id || !occurred_at) {
     return { error: "필수 항목이 누락되었습니다.", client_id };
   }
@@ -186,17 +186,17 @@ function insertSpray(payload, userId) {
     const infoCalcium = db
       .prepare(
         `INSERT INTO transactions
-          (client_id, warehouse_id, item_id, type, quantity, delta, memo, user_id, occurred_at)
+          (client_id, warehouse_id, item_id, type, quantity, delta, memo, operator_name, occurred_at)
          VALUES (?, ?, ?, 'out', ?, ?, ?, ?, ?)`
       )
-      .run(calciumClientId, warehouse_id, calcium_item_id, calciumQty, -calciumQty, label, userId, occurred_at);
+      .run(calciumClientId, warehouse_id, calcium_item_id, calciumQty, -calciumQty, label, operator_name || null, occurred_at);
     const infoSalt = db
       .prepare(
         `INSERT INTO transactions
-          (client_id, warehouse_id, item_id, type, quantity, delta, memo, user_id, occurred_at)
+          (client_id, warehouse_id, item_id, type, quantity, delta, memo, operator_name, occurred_at)
          VALUES (?, ?, ?, 'out', ?, ?, ?, ?, ?)`
       )
-      .run(`${client_id}:salt`, warehouse_id, salt_item_id, saltQty, -saltQty, label, userId, occurred_at);
+      .run(`${client_id}:salt`, warehouse_id, salt_item_id, saltQty, -saltQty, label, operator_name || null, occurred_at);
     db.exec("COMMIT");
     return {
       status: "created",
@@ -211,53 +211,37 @@ function insertSpray(payload, userId) {
   }
 }
 
-router.post("/spray", requireAuth, (req, res) => {
+router.post("/spray", (req, res) => {
   const payload = req.body || {};
-  if (!canAccessWarehouse(req.user, payload.warehouse_id)) {
-    return res.status(403).json({ error: "소속 지사의 창고에만 기록할 수 있습니다." });
-  }
-  const result = insertSpray(payload, req.user.id);
+  const result = insertSpray(payload);
   if (result.error) return res.status(400).json(result);
   const code = result.status === "created" ? 201 : 200;
   res.status(code).json(result);
 });
 
-router.post("/spray/sync", requireAuth, (req, res) => {
+router.post("/spray/sync", (req, res) => {
   const items = Array.isArray(req.body?.sprays) ? req.body.sprays : [];
-  const results = items.map((payload) => {
-    if (!canAccessWarehouse(req.user, payload.warehouse_id)) {
-      return { client_id: payload.client_id, error: "소속 지사의 창고에만 기록할 수 있습니다." };
-    }
-    return { client_id: payload.client_id, ...insertSpray(payload, req.user.id) };
-  });
+  const results = items.map((payload) => ({ client_id: payload.client_id, ...insertSpray(payload) }));
   res.json({ results });
 });
 
-router.post("/convert", requireAuth, (req, res) => {
+router.post("/convert", (req, res) => {
   const payload = req.body || {};
-  if (!canAccessWarehouse(req.user, payload.warehouse_id)) {
-    return res.status(403).json({ error: "소속 지사의 창고에만 기록할 수 있습니다." });
-  }
-  const result = insertConversion(payload, req.user.id);
+  const result = insertConversion(payload);
   if (result.error) return res.status(400).json(result);
   const code = result.status === "created" ? 201 : 200;
   res.status(code).json(result);
 });
 
-router.post("/convert/sync", requireAuth, (req, res) => {
+router.post("/convert/sync", (req, res) => {
   const items = Array.isArray(req.body?.conversions) ? req.body.conversions : [];
-  const results = items.map((payload) => {
-    if (!canAccessWarehouse(req.user, payload.warehouse_id)) {
-      return { client_id: payload.client_id, error: "소속 지사의 창고에만 기록할 수 있습니다." };
-    }
-    return { client_id: payload.client_id, ...insertConversion(payload, req.user.id) };
-  });
+  const results = items.map((payload) => ({ client_id: payload.client_id, ...insertConversion(payload) }));
   res.json({ results });
 });
 
-router.get("/", requireAuth, (req, res) => {
+router.get("/", (req, res) => {
   const { warehouse_id, item_id, type, from, to, limit } = req.query;
-  const branchId = effectiveBranchId(req.user, req.query.branch_id);
+  const branchId = req.query.branch_id;
   const clauses = [];
   const params = [];
   if (warehouse_id) {
@@ -289,12 +273,11 @@ router.get("/", requireAuth, (req, res) => {
   const rows = db
     .prepare(
       `SELECT t.*, b.name AS branch_name, w.name AS warehouse_name,
-              i.category AS item_category, i.name AS item_name, i.unit AS item_unit, u.name AS user_name
+              i.category AS item_category, i.name AS item_name, i.unit AS item_unit
        FROM transactions t
        JOIN warehouses w ON w.id = t.warehouse_id
        JOIN branches b ON b.id = w.branch_id
        JOIN items i ON i.id = t.item_id
-       LEFT JOIN users u ON u.id = t.user_id
        ${where}
        ORDER BY t.occurred_at DESC, t.id DESC
        LIMIT ?`
@@ -303,25 +286,17 @@ router.get("/", requireAuth, (req, res) => {
   res.json(rows);
 });
 
-router.post("/", requireAuth, (req, res) => {
+router.post("/", (req, res) => {
   const tx = req.body || {};
-  if (!canAccessWarehouse(req.user, tx.warehouse_id)) {
-    return res.status(403).json({ error: "소속 지사의 창고에만 기록할 수 있습니다." });
-  }
-  const result = insertTransaction(tx, req.user.id);
+  const result = insertTransaction(tx);
   if (result.error) return res.status(400).json(result);
   const code = result.status === "created" ? 201 : 200;
   res.status(code).json(result);
 });
 
-router.post("/sync", requireAuth, (req, res) => {
+router.post("/sync", (req, res) => {
   const items = Array.isArray(req.body?.transactions) ? req.body.transactions : [];
-  const results = items.map((tx) => {
-    if (!canAccessWarehouse(req.user, tx.warehouse_id)) {
-      return { client_id: tx.client_id, error: "소속 지사의 창고에만 기록할 수 있습니다." };
-    }
-    return { client_id: tx.client_id, ...insertTransaction(tx, req.user.id) };
-  });
+  const results = items.map((tx) => ({ client_id: tx.client_id, ...insertTransaction(tx) }));
   res.json({ results });
 });
 

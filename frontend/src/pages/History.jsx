@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import client from "../api/client.js";
-import { useAuth } from "../context/AuthContext.jsx";
 
 const TYPE_LABEL = { in: "입고", out: "사용", adjust: "조정", convert: "전환" };
 const TYPE_STYLE = {
@@ -11,8 +10,6 @@ const TYPE_STYLE = {
 };
 
 export default function History() {
-  const { user } = useAuth();
-  const isField = user?.role === "field";
   const [branches, setBranches] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [filters, setFilters] = useState({ branch_id: "", warehouse_id: "", type: "", from: "", to: "" });
@@ -21,14 +18,10 @@ export default function History() {
 
   useEffect(() => {
     Promise.all([client.get("/branches"), client.get("/warehouses")]).then(([branchRes, warehouseRes]) => {
-      const visibleBranches = isField ? branchRes.data.filter((b) => b.id === user.branch_id) : branchRes.data;
-      setBranches(visibleBranches);
+      setBranches(branchRes.data);
       setWarehouses(warehouseRes.data);
-      if (isField && user.branch_id) {
-        setFilters((f) => ({ ...f, branch_id: String(user.branch_id) }));
-      }
     });
-  }, [user]);
+  }, []);
 
   const warehousesInBranch = useMemo(
     () => (filters.branch_id ? warehouses.filter((w) => String(w.branch_id) === filters.branch_id) : warehouses),
@@ -54,7 +47,6 @@ export default function History() {
           className="border border-slate-300 rounded-lg px-3 py-2 bg-white text-sm"
           value={filters.branch_id}
           onChange={(e) => setFilters({ ...filters, branch_id: e.target.value, warehouse_id: "" })}
-          disabled={isField}
         >
           <option value="">전체 지사</option>
           {branches.map((b) => (
@@ -145,7 +137,7 @@ export default function History() {
                     {r.type === "convert" && r.delta > 0 ? "+" : ""}
                     {(r.type === "convert" ? r.delta : r.quantity).toLocaleString()} {r.item_unit}
                   </td>
-                  <td className="px-4 py-2">{r.user_name || "-"}</td>
+                  <td className="px-4 py-2">{r.operator_name || "-"}</td>
                   <td className="px-4 py-2 text-slate-500">{r.memo || "-"}</td>
                 </tr>
               ))

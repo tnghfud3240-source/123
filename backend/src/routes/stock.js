@@ -1,13 +1,12 @@
 const express = require("express");
 const db = require("../db");
-const { requireAuth, effectiveBranchId } = require("../auth");
 
 const router = express.Router();
 
 // 지사 x 창고 x 품목(형태)별 현재 재고 = 해당 조합 거래의 delta 합계 (원 단위, 톤 환산 전)
-router.get("/", requireAuth, (req, res) => {
+router.get("/", (req, res) => {
   const { warehouse_id } = req.query;
-  const branchId = effectiveBranchId(req.user, req.query.branch_id);
+  const branchId = req.query.branch_id;
   const clauses = [];
   const params = [];
   if (warehouse_id) {
@@ -39,8 +38,8 @@ router.get("/", requireAuth, (req, res) => {
 
 // 지사별 품목 카테고리(예: 소금(제설용), 염화칼슘) 합계 - 톤 환산, 소속 창고 전체 합산
 // 비축기준(stock_targets)은 지사+카테고리 단위로만 존재
-router.get("/branch-summary", requireAuth, (req, res) => {
-  const branchId = effectiveBranchId(req.user, req.query.branch_id);
+router.get("/branch-summary", (req, res) => {
+  const branchId = req.query.branch_id;
   const clauses = [];
   const params = [];
   if (branchId) {

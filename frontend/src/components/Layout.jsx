@@ -1,23 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext.jsx";
+import { NavLink, Outlet } from "react-router-dom";
 import { onPendingCountChange } from "../offline/sync.js";
 
 const NAV_ITEMS = [
-  { to: "/", label: "대시보드", roles: ["admin", "office"] },
-  { to: "/entry", label: "입출고 등록", roles: ["admin", "office", "field"] },
-  { to: "/stock", label: "재고 현황", roles: ["admin", "office", "field"] },
-  { to: "/history", label: "이력 조회", roles: ["admin", "office", "field"] },
-  { to: "/admin/branches", label: "지사 관리", roles: ["admin", "office"] },
-  { to: "/admin/warehouses", label: "창고 관리", roles: ["admin", "office"] },
-  { to: "/admin/items", label: "품목 관리", roles: ["admin", "office"] },
-  { to: "/admin/stock-targets", label: "비축기준 관리", roles: ["admin", "office"] },
-  { to: "/admin/users", label: "사용자 관리", roles: ["admin", "office"] },
+  { to: "/", label: "대시보드" },
+  { to: "/entry", label: "입출고 등록" },
+  { to: "/stock", label: "재고 현황" },
+  { to: "/history", label: "이력 조회" },
+  { to: "/admin/branches", label: "지사 관리" },
+  { to: "/admin/warehouses", label: "창고 관리" },
+  { to: "/admin/items", label: "품목 관리" },
+  { to: "/admin/stock-targets", label: "비축기준 관리" },
 ];
 
 export default function Layout() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const [pending, setPending] = useState(0);
   const [online, setOnline] = useState(navigator.onLine);
 
@@ -32,8 +28,6 @@ export default function Layout() {
       window.removeEventListener("offline", off);
     };
   }, []);
-
-  const items = NAV_ITEMS.filter((i) => i.roles.includes(user?.role));
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -53,20 +47,10 @@ export default function Layout() {
                 동기화 대기 {pending}건
               </span>
             )}
-            <span className="hidden sm:inline">{user?.name} ({roleLabel(user?.role)})</span>
-            <button
-              onClick={() => {
-                logout();
-                navigate("/login");
-              }}
-              className="underline"
-            >
-              로그아웃
-            </button>
           </div>
         </div>
         <nav className="flex overflow-x-auto px-2 border-t border-brand-800 bg-brand-800">
-          {items.map((item) => (
+          {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -87,8 +71,4 @@ export default function Layout() {
       </main>
     </div>
   );
-}
-
-export function roleLabel(role) {
-  return { admin: "관리자", office: "사무실", field: "현장" }[role] || role;
 }

@@ -1,12 +1,9 @@
 const express = require("express");
 const db = require("../db");
-const { requireAuth, requireRole } = require("../auth");
 
 const router = express.Router();
 
-// 창고 목록(이름·소속 지사)은 전환 시 타지사 목적지 선택 등에 필요해 모든 역할에
-// 공개한다. 재고 수량·이력 등 민감한 데이터는 각 라우트에서 별도로 지사 범위를 강제.
-router.get("/", requireAuth, (req, res) => {
+router.get("/", (req, res) => {
   const { branch_id: branchId } = req.query;
   const clauses = [];
   const params = [];
@@ -27,7 +24,7 @@ router.get("/", requireAuth, (req, res) => {
   res.json(rows);
 });
 
-router.post("/", requireAuth, requireRole("admin", "office"), (req, res) => {
+router.post("/", (req, res) => {
   const { name, branch_id } = req.body || {};
   if (!name || !branch_id) {
     return res.status(400).json({ error: "지사와 창고명을 입력하세요." });
@@ -48,7 +45,7 @@ router.post("/", requireAuth, requireRole("admin", "office"), (req, res) => {
   }
 });
 
-router.put("/:id", requireAuth, requireRole("admin", "office"), (req, res) => {
+router.put("/:id", (req, res) => {
   const { name, branch_id } = req.body || {};
   const existing = db.prepare("SELECT * FROM warehouses WHERE id = ?").get(req.params.id);
   if (!existing) return res.status(404).json({ error: "창고를 찾을 수 없습니다." });
@@ -66,7 +63,7 @@ router.put("/:id", requireAuth, requireRole("admin", "office"), (req, res) => {
   );
 });
 
-router.delete("/:id", requireAuth, requireRole("admin", "office"), (req, res) => {
+router.delete("/:id", (req, res) => {
   const used = db
     .prepare("SELECT COUNT(*) c FROM transactions WHERE warehouse_id = ?")
     .get(req.params.id).c;

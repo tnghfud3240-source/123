@@ -1,11 +1,9 @@
 const express = require("express");
 const db = require("../db");
-const { requireAuth, requireRole } = require("../auth");
 
 const router = express.Router();
 
-// 대시보드는 전체 지사 현황을 보여주므로 본부 권한(admin/office)만 접근
-router.get("/summary", requireAuth, requireRole("admin", "office"), (req, res) => {
+router.get("/summary", (req, res) => {
   const branchCount = db.prepare("SELECT COUNT(*) c FROM branches").get().c;
   const warehouseCount = db.prepare("SELECT COUNT(*) c FROM warehouses").get().c;
   const itemCount = db.prepare("SELECT COUNT(*) c FROM items").get().c;
@@ -46,12 +44,11 @@ router.get("/summary", requireAuth, requireRole("admin", "office"), (req, res) =
     .prepare(
       `SELECT t.id, t.type, t.quantity, t.delta, t.occurred_at, t.memo,
               b.name AS branch_name, w.name AS warehouse_name,
-              i.category, i.name AS item_form, i.unit, u.name AS user_name
+              i.category, i.name AS item_form, i.unit, t.operator_name
        FROM transactions t
        JOIN warehouses w ON w.id = t.warehouse_id
        JOIN branches b ON b.id = w.branch_id
        JOIN items i ON i.id = t.item_id
-       LEFT JOIN users u ON u.id = t.user_id
        ORDER BY t.created_at DESC
        LIMIT 20`
     )

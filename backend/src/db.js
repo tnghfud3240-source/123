@@ -35,18 +35,6 @@ CREATE TABLE IF NOT EXISTS warehouses (
   UNIQUE(branch_id, name)
 );
 
--- field 역할 계정은 branch_id로 소속 지사가 정해지며, 그 지사에 속한 모든 창고에
--- 접근할 수 있다(창고 단위가 아닌 지사 단위 권한 범위).
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  name TEXT NOT NULL,
-  role TEXT NOT NULL CHECK(role IN ('admin','office','field')),
-  branch_id INTEGER REFERENCES branches(id) ON DELETE SET NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
 -- items: 품목의 형태(form)별 세부 항목. category가 같은 items는 하나의 "품목"으로 묶여
 -- 재고 합계 시 to_ton_factor로 톤 환산되어 합산됨 (예: 소금(제설용)의 톤백/개포)
 CREATE TABLE IF NOT EXISTS items (
@@ -78,7 +66,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   quantity REAL NOT NULL,
   delta REAL NOT NULL,
   memo TEXT,
-  user_id INTEGER REFERENCES users(id),
+  operator_name TEXT,
   occurred_at TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

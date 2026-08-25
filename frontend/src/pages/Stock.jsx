@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import client from "../api/client.js";
-import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Stock() {
-  const { user } = useAuth();
   const [branches, setBranches] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [branchId, setBranchId] = useState("");
@@ -11,18 +9,13 @@ export default function Stock() {
   const [detailRows, setDetailRows] = useState([]);
   const [summaryRows, setSummaryRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const isField = user?.role === "field";
 
   useEffect(() => {
     Promise.all([client.get("/branches"), client.get("/warehouses")]).then(([branchRes, warehouseRes]) => {
-      const visibleBranches = isField ? branchRes.data.filter((b) => b.id === user.branch_id) : branchRes.data;
-      setBranches(visibleBranches);
+      setBranches(branchRes.data);
       setWarehouses(warehouseRes.data);
-      if (isField && user.branch_id) {
-        setBranchId(String(user.branch_id));
-      }
     });
-  }, [user]);
+  }, []);
 
   const warehousesInBranch = useMemo(
     () => (branchId ? warehouses.filter((w) => String(w.branch_id) === String(branchId)) : warehouses),
@@ -79,7 +72,6 @@ export default function Stock() {
               setBranchId(e.target.value);
               setWarehouseId("");
             }}
-            disabled={isField}
           >
             <option value="">전체 지사</option>
             {branches.map((b) => (

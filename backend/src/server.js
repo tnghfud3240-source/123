@@ -3,7 +3,6 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 
-const authRoutes = require("./routes/auth");
 const branchRoutes = require("./routes/branches");
 const warehouseRoutes = require("./routes/warehouses");
 const itemRoutes = require("./routes/items");
@@ -11,7 +10,6 @@ const transactionRoutes = require("./routes/transactions");
 const stockRoutes = require("./routes/stock");
 const stockTargetRoutes = require("./routes/stock-targets");
 const dashboardRoutes = require("./routes/dashboard");
-const userRoutes = require("./routes/users");
 
 const app = express();
 app.use(cors());
@@ -19,7 +17,6 @@ app.use(express.json());
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
-app.use("/api/auth", authRoutes);
 app.use("/api/branches", branchRoutes);
 app.use("/api/warehouses", warehouseRoutes);
 app.use("/api/items", itemRoutes);
@@ -27,7 +24,6 @@ app.use("/api/transactions", transactionRoutes);
 app.use("/api/stock", stockRoutes);
 app.use("/api/stock-targets", stockTargetRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/users", userRoutes);
 
 // 프론트엔드 빌드 결과물(frontend/dist)을 백엔드에서 함께 서빙한다.
 // PC 한 대에서 `npm run build`(프론트) 후 `npm start`(백엔드)만 실행하면

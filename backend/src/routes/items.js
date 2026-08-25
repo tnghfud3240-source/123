@@ -1,15 +1,14 @@
 const express = require("express");
 const db = require("../db");
-const { requireAuth, requireRole } = require("../auth");
 
 const router = express.Router();
 
-router.get("/", requireAuth, (req, res) => {
+router.get("/", (req, res) => {
   const rows = db.prepare("SELECT * FROM items ORDER BY category, sort_order, name").all();
   res.json(rows);
 });
 
-router.post("/", requireAuth, requireRole("admin", "office"), (req, res) => {
+router.post("/", (req, res) => {
   const { name, category, unit, to_ton_factor } = req.body || {};
   if (!name || !category || !unit) {
     return res.status(400).json({ error: "품목명, 카테고리, 단위를 입력하세요." });
@@ -27,7 +26,7 @@ router.post("/", requireAuth, requireRole("admin", "office"), (req, res) => {
   }
 });
 
-router.put("/:id", requireAuth, requireRole("admin", "office"), (req, res) => {
+router.put("/:id", (req, res) => {
   const existing = db.prepare("SELECT * FROM items WHERE id = ?").get(req.params.id);
   if (!existing) return res.status(404).json({ error: "품목을 찾을 수 없습니다." });
   const { name, category, unit, to_ton_factor } = req.body || {};
@@ -43,7 +42,7 @@ router.put("/:id", requireAuth, requireRole("admin", "office"), (req, res) => {
   res.json(db.prepare("SELECT * FROM items WHERE id = ?").get(req.params.id));
 });
 
-router.delete("/:id", requireAuth, requireRole("admin", "office"), (req, res) => {
+router.delete("/:id", (req, res) => {
   const used = db
     .prepare("SELECT COUNT(*) c FROM transactions WHERE item_id = ?")
     .get(req.params.id).c;

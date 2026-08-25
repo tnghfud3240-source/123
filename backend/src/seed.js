@@ -1,4 +1,3 @@
-const bcrypt = require("bcryptjs");
 const db = require("./db");
 
 function upsertBranch(name, sortOrder) {
@@ -43,18 +42,6 @@ function upsertStockTarget(branchId, category, minStockTons) {
   return db.prepare("SELECT * FROM stock_targets WHERE id = ?").get(info.lastInsertRowid);
 }
 
-function upsertUser(username, password, name, role, branch_id) {
-  const existing = db.prepare("SELECT * FROM users WHERE username = ?").get(username);
-  if (existing) return existing;
-  const hash = bcrypt.hashSync(password, 10);
-  const info = db
-    .prepare(
-      "INSERT INTO users (username, password_hash, name, role, branch_id) VALUES (?, ?, ?, ?, ?)"
-    )
-    .run(username, hash, name, role, branch_id || null);
-  return db.prepare("SELECT * FROM users WHERE id = ?").get(info.lastInsertRowid);
-}
-
 // 충북본부 지사별 제설창고 구성
 const BRANCH_WAREHOUSES = {
   진천지사: ["서청주IC", "지사", "일죽IC", "남이천IC", "마장휴게소", "현장염수분사장치"],
@@ -97,27 +84,7 @@ for (const [branchName, targets] of Object.entries(BRANCH_STOCK_TARGETS_TONS)) {
   }
 }
 
-// 사무실 담당자: 모든 권한(지사/창고/품목/비축기준/사용자 관리 포함)
-upsertUser("of", "1111", "사무실 담당자", "office", null);
-
-// 지사별 현장 담당자: 소속 지사에 속한 모든 창고에 접근 가능(창고 단위 아님)
-const FIELD_USERS = [
-  { username: "fd1", branch: "진천지사", name: "진천지사 현장담당자" },
-  { username: "fd2", branch: "제천지사", name: "제천지사 현장담당자" },
-  { username: "fd3", branch: "충주지사", name: "충주지사 현장담당자" },
-  { username: "fd4", branch: "보은지사", name: "보은지사 현장담당자" },
-  { username: "fd5", branch: "엄정지사", name: "엄정지사 현장담당자" },
-  { username: "fd6", branch: "상주지사", name: "상주지사 현장담당자" },
-];
-for (const { username, branch, name } of FIELD_USERS) {
-  upsertUser(username, "1111", name, "field", branchesByName[branch].id);
-}
-
 console.log("시드 데이터 생성 완료");
 console.log(`- 지사 ${Object.keys(BRANCH_WAREHOUSES).length}개, 창고 ${Object.values(warehousesByBranch).flat().length}개 생성`);
 console.log("- 품목: 소금(제설용) 톤백/개포(톤), 염화칼슘 톤백/염수(리터, 1톤=1,935리터 기준)");
 console.log("- 지사별 비축기준(톤) 반영 완료");
-console.log("- of / 1111 (사무실 담당자, 모든 권한)");
-for (const { username, branch } of FIELD_USERS) {
-  console.log(`- ${username} / 1111 (현장 담당자, ${branch})`);
-}

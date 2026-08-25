@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import client from "../api/client.js";
-import { useAuth } from "../context/AuthContext.jsx";
 import { submitTransaction, submitConversion, submitSpray } from "../offline/sync.js";
+
+const OPERATOR_NAME_KEY = "snow_operator_name";
 
 const TYPE_OPTIONS = [
   { value: "in", label: "입고", color: "bg-emerald-600 active:bg-emerald-700" },
@@ -25,7 +26,6 @@ function todayStr() {
 }
 
 export default function EntryForm() {
-  const { user } = useAuth();
   const [branches, setBranches] = useState([]);
   const [allBranches, setAllBranches] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
@@ -52,22 +52,24 @@ export default function EntryForm() {
 
   const [occurredAt, setOccurredAt] = useState(todayStr());
   const [memo, setMemo] = useState("");
+  const [operatorName, setOperatorName] = useState(
+    () => localStorage.getItem(OPERATOR_NAME_KEY) || ""
+  );
   const [message, setMessage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const isField = user?.role === "field";
+
+  function handleOperatorNameChange(value) {
+    setOperatorName(value);
+    localStorage.setItem(OPERATOR_NAME_KEY, value);
+  }
 
   useEffect(() => {
     Promise.all([client.get("/branches"), client.get("/warehouses")]).then(([branchRes, warehouseRes]) => {
-      // field 역할은 백엔드가 이미 자신의 지사 데이터만 내려주지만, 지사 선택 목록도
-      // 자신의 지사 하나로 고정해 다른 지사가 보이지 않도록 한다.
-      const visibleBranches = isField
-        ? branchRes.data.filter((b) => b.id === user.branch_id)
-        : branchRes.data;
-      setBranches(visibleBranches);
-      // 전환 목적지 선택은 소속 지사와 무관하게 전체 지사/창고 중에서 고를 수 있어야 한다.
+      setBranches(branchRes.data);
+      // 전환 목적지 선택도 같은 전체 지사/창고 목록에서 고를 수 있다.
       setAllBranches(branchRes.data);
       setWarehouses(warehouseRes.data);
-      const initialBranchId = isField ? user.branch_id : visibleBranches[0]?.id || "";
+      const initialBranchId = branchRes.data[0]?.id || "";
       setBranchId(String(initialBranchId || ""));
       const firstWarehouse = warehouseRes.data.find(
         (w) => String(w.branch_id) === String(initialBranchId) && w.name !== VIRTUAL_WAREHOUSE_NAME
@@ -75,7 +77,7 @@ export default function EntryForm() {
       setWarehouseId(String(firstWarehouse?.id || ""));
     });
     client.get("/items").then((res) => setItems(res.data));
-  }, [user]);
+  }, []);
 
   // "현장염수분사장치"는 실제 창고가 아니라 전환 시 목적지로만 쓰이는 가상 창고이므로
   // 입고/사용/전환 전(前) 창고로는 선택할 수 없게 한다.
@@ -240,6 +242,7 @@ export default function EntryForm() {
           quantity: Number(quantity),
           occurred_at: occurredAt,
           memo,
+          operator_name: operatorName,
         });
       } else if (type === "out") {
         result = await submitSpray({
@@ -249,6 +252,7 @@ export default function EntryForm() {
           salt_item_id: Number(saltItemId),
           occurred_at: occurredAt,
           memo,
+          operator_name: operatorName,
         });
       } else {
         result = await submitTransaction({
@@ -258,6 +262,7 @@ export default function EntryForm() {
           quantity: Number(quantity),
           occurred_at: occurredAt,
           memo,
+          operator_name: operatorName,
         });
       }
       if (result.queued) {
@@ -325,10 +330,9 @@ export default function EntryForm() {
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">지사</label>
             <select
-              className="w-full border border-slate-300 rounded-lg px-3 py-3 text-base bg-white disabled:bg-slate-100"
+              className="w-full border border-slate-300 rounded-lg px-3 py-3 text-base bg-white"
               value={branchId}
               onChange={(e) => setBranchId(e.target.value)}
-              disabled={isField}
             >
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -589,9 +593,10 @@ export default function EntryForm() {
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">담당자</label>
             <input
-              disabled
-              className="w-full border border-slate-200 bg-slate-100 rounded-lg px-3 py-3 text-base text-slate-500"
-              value={user?.name || ""}
+              className="w-full border border-slate-300 rounded-lg px-3 py-3 text-base"
+              value={operatorName}
+              onChange={(e) => handleOperatorNameChange(e.target.value)}
+              placeholder="이름을 입력하세요"
             />
           </div>
         </div>

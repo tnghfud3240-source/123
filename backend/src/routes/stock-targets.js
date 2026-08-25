@@ -1,10 +1,9 @@
 const express = require("express");
 const db = require("../db");
-const { requireAuth, requireRole } = require("../auth");
 
 const router = express.Router();
 
-router.get("/", requireAuth, (req, res) => {
+router.get("/", (req, res) => {
   const rows = db
     .prepare(
       `SELECT st.id, st.branch_id, b.name AS branch_name, st.category, st.min_stock_tons
@@ -17,7 +16,7 @@ router.get("/", requireAuth, (req, res) => {
 });
 
 // 지사+카테고리 조합을 upsert (없으면 생성, 있으면 갱신)
-router.put("/", requireAuth, requireRole("admin", "office"), (req, res) => {
+router.put("/", (req, res) => {
   const { branch_id, category, min_stock_tons } = req.body || {};
   if (!branch_id || !category || min_stock_tons == null) {
     return res.status(400).json({ error: "지사, 카테고리, 비축기준(톤)을 입력하세요." });
