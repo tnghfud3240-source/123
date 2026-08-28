@@ -3,6 +3,7 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 
+const { seedIfNeeded } = require("./seed");
 const branchRoutes = require("./routes/branches");
 const warehouseRoutes = require("./routes/warehouses");
 const itemRoutes = require("./routes/items");
@@ -10,6 +11,8 @@ const transactionRoutes = require("./routes/transactions");
 const stockRoutes = require("./routes/stock");
 const stockTargetRoutes = require("./routes/stock-targets");
 const dashboardRoutes = require("./routes/dashboard");
+
+seedIfNeeded();
 
 const app = express();
 app.use(cors());
@@ -46,7 +49,12 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "서버 오류가 발생했습니다." });
 });
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`제설창고관리시스템 서버 실행 중: http://localhost:${PORT}`);
-});
+// Vercel 서버리스 환경에서는 이 파일을 함수 핸들러로 require하므로 listen을 호출하지 않는다.
+if (require.main === module) {
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, () => {
+    console.log(`제설창고관리시스템 서버 실행 중: http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;

@@ -10,7 +10,8 @@ try {
   );
 }
 
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "..", "data");
+// Vercel 서버리스 환경은 /tmp만 쓰기 가능하고 재시작/재배포 시 초기화된다(영구 저장 아님).
+const DATA_DIR = process.env.DATA_DIR || (process.env.VERCEL ? "/tmp/data" : path.join(__dirname, "..", "data"));
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const DB_PATH = path.join(DATA_DIR, "snow_storage.db");

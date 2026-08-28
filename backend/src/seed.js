@@ -1,5 +1,11 @@
 const db = require("./db");
 
+function seedIfNeeded() {
+  const branchCount = db.prepare("SELECT COUNT(*) c FROM branches").get().c;
+  if (branchCount > 0) return;
+  runSeed();
+}
+
 function upsertBranch(name, sortOrder) {
   const existing = db.prepare("SELECT * FROM branches WHERE name = ?").get(name);
   if (existing) return existing;
@@ -52,20 +58,14 @@ const BRANCH_WAREHOUSES = {
   상주지사: ["연풍IC", "점촌함창IC", "지사", "선산IC", "현장염수분사장치"],
 };
 
-const branchesByName = {};
-const warehousesByBranch = {};
-Object.entries(BRANCH_WAREHOUSES).forEach(([branchName, warehouseNames], index) => {
-  const branch = upsertBranch(branchName, index);
-  branchesByName[branchName] = branch;
-  warehousesByBranch[branchName] = warehouseNames.map((wname) => upsertWarehouse(branch.id, wname));
-});
-
 // 품목: 카테고리(대분류)별 형태(톤백/개포/염수) 구분. to_ton_factor는 해당 형태의 1단위가
 // 몇 톤에 해당하는지를 나타내며, 재고 합계 계산에 쓰임. sort_order로 톤백이 항상 먼저 표시됨.
-upsertItem("소금(제설용)", "톤백", "톤", 1, 0);
-upsertItem("소금(제설용)", "개포", "톤", 1, 1); // 톤백을 개포해도 무게는 그대로(톤 단위 동일)
-upsertItem("염화칼슘", "톤백", "톤", 1, 0);
-upsertItem("염화칼슘", "염수", "리터", 1 / 1935, 1); // 염화칼슘 1톤으로 염수 1,935리터 제조 기준
+const ITEMS = [
+  ["소금(제설용)", "톤백", "톤", 1, 0],
+  ["소금(제설용)", "개포", "톤", 1, 1], // 톤백을 개포해도 무게는 그대로(톤 단위 동일)
+  ["염화칼슘", "톤백", "톤", 1, 0],
+  ["염화칼슘", "염수", "리터", 1 / 1935, 1], // 염화칼슘 1톤으로 염수 1,935리터 제조 기준
+];
 
 // 지사별 비축기준(톤). 지사마다 실제 기준이 다름.
 const BRANCH_STOCK_TARGETS_TONS = {
@@ -77,14 +77,34 @@ const BRANCH_STOCK_TARGETS_TONS = {
   상주지사: { "소금(제설용)": 1911, 염화칼슘: 132 },
 };
 
-for (const [branchName, targets] of Object.entries(BRANCH_STOCK_TARGETS_TONS)) {
-  const branch = branchesByName[branchName];
-  for (const [category, minTons] of Object.entries(targets)) {
-    upsertStockTarget(branch.id, category, minTons);
+function runSeed() {
+  const branchesByName = {};
+  const warehousesByBranch = {};
+  Object.entries(BRANCH_WAREHOUSES).forEach(([branchName, warehouseNames], index) => {
+    const branch = upsertBranch(branchName, index);
+    branchesByName[branchName] = branch;
+    warehousesByBranch[branchName] = warehouseNames.map((wname) => upsertWarehouse(branch.id, wname));
+  });
+
+  for (const [category, name, unit, toTonFactor, sortOrder] of ITEMS) {
+    upsertItem(category, name, unit, toTonFactor, sortOrder);
   }
+
+  for (const [branchName, targets] of Object.entries(BRANCH_STOCK_TARGETS_TONS)) {
+    const branch = branchesByName[branchName];
+    for (const [category, minTons] of Object.entries(targets)) {
+      upsertStockTarget(branch.id, category, minTons);
+    }
+  }
+
+  console.log("시드 데이터 생성 완료");
+  console.log(`- 지사 ${Object.keys(BRANCH_WAREHOUSES).length}개, 창고 ${Object.values(warehousesByBranch).flat().length}개 생성`);
+  console.log("- 품목: 소금(제설용) 톤백/개포(톤), 염화칼슘 톤백/염수(리터, 1톤=1,935리터 기준)");
+  console.log("- 지사별 비축기준(톤) 반영 완료");
 }
 
-console.log("시드 데이터 생성 완료");
-console.log(`- 지사 ${Object.keys(BRANCH_WAREHOUSES).length}개, 창고 ${Object.values(warehousesByBranch).flat().length}개 생성`);
-console.log("- 품목: 소금(제설용) 톤백/개포(톤), 염화칼슘 톤백/염수(리터, 1톤=1,935리터 기준)");
-console.log("- 지사별 비축기준(톤) 반영 완료");
+if (require.main === module) {
+  runSeed();
+}
+
+module.exports = { seedIfNeeded, runSeed };
