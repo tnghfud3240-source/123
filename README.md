@@ -1,4 +1,4 @@
-# 제설창고관리시스템 (Snow Storage Management System)
+# 제설자재관리시스템 (Snow Material Management System)
 
 현장 창고 담당자와 사무실 담당자가 함께 사용하는 제설자재 재고/입출고 관리 웹앱(PWA)입니다.
 

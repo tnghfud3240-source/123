@@ -53,7 +53,7 @@ app.use((err, req, res, next) => {
 if (require.main === module) {
   const PORT = process.env.PORT || 4000;
   app.listen(PORT, () => {
-    console.log(`제설창고관리시스템 서버 실행 중: http://localhost:${PORT}`);
+    console.log(`제설자재관리시스템 서버 실행 중: http://localhost:${PORT}`);
   });
 }
 

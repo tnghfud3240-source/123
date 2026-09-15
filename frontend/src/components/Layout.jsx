@@ -60,7 +60,7 @@ export default function Layout() {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <header className="bg-brand-700 text-white sticky top-0 z-10 shadow">
         <div className="flex items-center justify-between px-4 py-3">
-          <div className="font-bold text-lg">❄ 제설창고관리시스템</div>
+          <div className="font-bold text-lg">❄ 제설자재관리시스템</div>
           <div className="flex items-center gap-3 text-sm">
             <span
               className={`px-2 py-1 rounded-full text-xs font-semibold ${

@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["icons/icon-192.png", "icons/icon-512.png"],
       manifest: {
-        name: "제설창고관리시스템",
-        short_name: "제설창고관리",
+        name: "제설자재관리시스템",
+        short_name: "제설자재관리",
         description: "제설자재 창고 재고/입출고 관리 시스템",
         theme_color: "#1d4ed8",
         background_color: "#ffffff",
