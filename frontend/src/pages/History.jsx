@@ -13,6 +13,7 @@ const TYPE_STYLE = {
 export default function History() {
   const [branches, setBranches] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
+  const [items, setItems] = useState([]);
   const [filters, setFilters] = useState({
     branch_id: "",
     warehouse_id: "",
@@ -26,10 +27,13 @@ export default function History() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([client.get("/branches"), client.get("/warehouses")]).then(([branchRes, warehouseRes]) => {
-      setBranches(branchRes.data);
-      setWarehouses(warehouseRes.data);
-    });
+    Promise.all([client.get("/branches"), client.get("/warehouses"), client.get("/items")]).then(
+      ([branchRes, warehouseRes, itemRes]) => {
+        setBranches(branchRes.data);
+        setWarehouses(warehouseRes.data);
+        setItems(itemRes.data);
+      }
+    );
   }, []);
 
   const warehousesInBranch = useMemo(
@@ -37,15 +41,22 @@ export default function History() {
     [warehouses, filters.branch_id]
   );
 
-  // 염수(리터)도 톤 환산해서 다른 품목과 같은 단위(톤)로 합산한다.
-  const totalTons = useMemo(
-    () =>
-      rows.reduce((sum, r) => {
-        const qty = r.type === "convert" ? Math.abs(r.delta) : r.quantity;
-        return sum + qty * r.item_to_ton_factor;
-      }, 0),
-    [rows]
+  // 염수(리터)도 톤 환산해서 같은 품목(카테고리) 안에서는 같은 단위(톤)로 합산한다.
+  const categoryTotals = useMemo(() => {
+    const totals = { "소금(제설용)": 0, 염화칼슘: 0 };
+    for (const r of rows) {
+      const qty = r.type === "convert" ? Math.abs(r.delta) : r.quantity;
+      totals[r.item_category] = (totals[r.item_category] || 0) + qty * r.item_to_ton_factor;
+    }
+    return totals;
+  }, [rows]);
+
+  // 염화칼슘 합계 톤을, 염수 품목의 환산 기준(리터당 톤)으로 다시 리터로 환산해서 함께 보여준다.
+  const brineToTonFactor = useMemo(
+    () => items.find((it) => it.category === "염화칼슘" && it.unit === "리터")?.to_ton_factor,
+    [items]
   );
+  const calciumTotalLiters = brineToTonFactor ? categoryTotals["염화칼슘"] / brineToTonFactor : null;
 
   useEffect(() => {
     setLoading(true);
@@ -64,15 +75,28 @@ export default function History() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 className="text-xl font-bold text-slate-800">입출고 이력</h2>
         {rows.length > 0 && (
-          <div className="text-sm text-slate-600">
-            합계:{" "}
-            <span className="font-semibold text-slate-800">
-              {totalTons.toLocaleString(undefined, { maximumFractionDigits: 2 })} 톤
-            </span>
-            <span className="text-slate-400"> ({rows.length.toLocaleString()}건)</span>
+          <div className="flex flex-wrap items-stretch gap-3">
+            <div className="bg-white rounded-lg shadow-sm px-4 py-2">
+              <div className="text-xs text-slate-500">소금 합계</div>
+              <div className="text-lg font-bold text-slate-800">
+                {categoryTotals["소금(제설용)"].toLocaleString(undefined, { maximumFractionDigits: 2 })} 톤
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm px-4 py-2">
+              <div className="text-xs text-slate-500">염화칼슘 합계</div>
+              <div className="text-lg font-bold text-slate-800">
+                {categoryTotals["염화칼슘"].toLocaleString(undefined, { maximumFractionDigits: 2 })} 톤
+              </div>
+              {calciumTotalLiters !== null && (
+                <div className="text-xs text-slate-400">
+                  ({calciumTotalLiters.toLocaleString(undefined, { maximumFractionDigits: 0 })} 리터)
+                </div>
+              )}
+            </div>
+            <div className="text-xs text-slate-400 self-center">{rows.length.toLocaleString()}건 조회됨</div>
           </div>
         )}
       </div>
