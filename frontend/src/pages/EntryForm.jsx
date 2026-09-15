@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import client from "../api/client.js";
 import { submitTransaction, submitConversion, submitSpray } from "../offline/sync.js";
-import { todayStr, withCurrentTime } from "../utils/datetime.js";
+import { todayStr, currentTimeStr, withTime } from "../utils/datetime.js";
 
 const OPERATOR_NAME_KEY = "snow_operator_name";
 
@@ -48,6 +48,7 @@ export default function EntryForm() {
   const [destWarehouseId, setDestWarehouseId] = useState("");
 
   const [occurredAt, setOccurredAt] = useState(todayStr());
+  const [occurredTime, setOccurredTime] = useState(currentTimeStr());
   const [memo, setMemo] = useState("");
   const [operatorName, setOperatorName] = useState(
     () => localStorage.getItem(OPERATOR_NAME_KEY) || ""
@@ -230,7 +231,7 @@ export default function EntryForm() {
     setMessage(null);
     try {
       let result;
-      const occurredAtWithTime = withCurrentTime(occurredAt);
+      const occurredAtWithTime = withTime(occurredAt, occurredTime);
       if (type === "convert") {
         result = await submitConversion({
           warehouse_id: Number(warehouseId),
@@ -580,13 +581,21 @@ export default function EntryForm() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">날짜</label>
-            <input
-              type="date"
-              className="w-full border border-slate-300 rounded-lg px-3 py-3 text-base"
-              value={occurredAt}
-              onChange={(e) => setOccurredAt(e.target.value)}
-            />
+            <label className="block text-sm font-semibold text-slate-700 mb-2">날짜 / 시간</label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                className="flex-1 min-w-0 border border-slate-300 rounded-lg px-3 py-3 text-base"
+                value={occurredAt}
+                onChange={(e) => setOccurredAt(e.target.value)}
+              />
+              <input
+                type="time"
+                className="border border-slate-300 rounded-lg px-2 py-3 text-base"
+                value={occurredTime}
+                onChange={(e) => setOccurredTime(e.target.value)}
+              />
+            </div>
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">담당자</label>
