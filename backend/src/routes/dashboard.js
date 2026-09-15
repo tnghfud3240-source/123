@@ -25,15 +25,12 @@ router.get("/summary", (req, res) => {
     )
     .all();
 
-  const stockByBranch = Object.values(
-    branchCategoryTotals.reduce((acc, row) => {
-      if (!acc[row.branch_id]) {
-        acc[row.branch_id] = { branch_id: row.branch_id, branch_name: row.branch_name, total_tons: 0 };
-      }
-      acc[row.branch_id].total_tons += row.total_tons;
-      return acc;
-    }, {})
-  );
+  const stockByBranchCategory = branchCategoryTotals.map((row) => ({
+    branch_id: row.branch_id,
+    branch_name: row.branch_name,
+    category: row.category,
+    total_tons: row.total_tons,
+  }));
 
   const lowStockAll = branchCategoryTotals
     .filter((row) => row.total_tons < row.min_stock_tons)
@@ -64,7 +61,7 @@ router.get("/summary", (req, res) => {
     item_count: itemCount,
     low_stock_count: lowStockAll.length,
     low_stock_count_by_category: lowStockCountByCategory,
-    stock_by_branch: stockByBranch,
+    stock_by_branch_category: stockByBranchCategory,
     low_stock: lowStock,
     recent_transactions: recent,
   });

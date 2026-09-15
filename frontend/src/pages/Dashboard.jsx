@@ -5,6 +5,8 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  Legend,
+  LabelList,
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
@@ -12,6 +14,8 @@ import client from "../api/client.js";
 import { formatOccurredAt } from "../utils/datetime.js";
 
 const TYPE_LABEL = { in: "입고", out: "사용", adjust: "조정", convert: "전환" };
+const CATEGORY_COLOR = { "소금(제설용)": "#2a78d6", 염화칼슘: "#eb6834" };
+const LABEL_STYLE = { fill: "#475569", fontSize: 11 };
 
 function StatCard({ label, value, accent }) {
   return (
@@ -31,10 +35,17 @@ export default function Dashboard() {
 
   if (!data) return <p className="text-slate-500">불러오는 중...</p>;
 
-  const chartData = data.stock_by_branch.map((b) => ({
-    name: b.branch_name,
-    톤: Math.round(b.total_tons * 100) / 100,
-  }));
+  const chartData = [];
+  const chartRowByBranch = new Map();
+  for (const row of data.stock_by_branch_category) {
+    let entry = chartRowByBranch.get(row.branch_id);
+    if (!entry) {
+      entry = { name: row.branch_name };
+      chartRowByBranch.set(row.branch_id, entry);
+      chartData.push(entry);
+    }
+    entry[row.category] = Math.round(row.total_tons * 100) / 100;
+  }
 
   return (
     <div className="space-y-6">
@@ -61,15 +72,21 @@ export default function Dashboard() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-4">
-        <h3 className="font-semibold text-slate-700 mb-3">지사별 총 재고량 (톤 환산, 전 품목 합계)</h3>
-        <div style={{ width: "100%", height: 260 }}>
+        <h3 className="font-semibold text-slate-700 mb-3">지사별 재고량 (톤 환산, 품목별)</h3>
+        <div style={{ width: "100%", height: 300 }}>
           <ResponsiveContainer>
-            <BarChart data={chartData} margin={{ left: -10 }}>
+            <BarChart data={chartData} margin={{ top: 20, left: -10 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="name" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Bar dataKey="톤" fill="#2563eb" radius={[6, 6, 0, 0]} />
+              <Tooltip formatter={(value) => `${value.toLocaleString()} 톤`} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="소금(제설용)" fill={CATEGORY_COLOR["소금(제설용)"]} radius={[4, 4, 0, 0]}>
+                <LabelList dataKey="소금(제설용)" position="top" style={LABEL_STYLE} formatter={(v) => v.toLocaleString()} />
+              </Bar>
+              <Bar dataKey="염화칼슘" fill={CATEGORY_COLOR["염화칼슘"]} radius={[4, 4, 0, 0]}>
+                <LabelList dataKey="염화칼슘" position="top" style={LABEL_STYLE} formatter={(v) => v.toLocaleString()} />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
