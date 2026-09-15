@@ -273,7 +273,8 @@ router.get("/", (req, res) => {
   const rows = db
     .prepare(
       `SELECT t.*, b.name AS branch_name, w.name AS warehouse_name,
-              i.category AS item_category, i.name AS item_name, i.unit AS item_unit
+              i.category AS item_category, i.name AS item_name, i.unit AS item_unit,
+              i.to_ton_factor AS item_to_ton_factor
        FROM transactions t
        JOIN warehouses w ON w.id = t.warehouse_id
        JOIN branches b ON b.id = w.branch_id

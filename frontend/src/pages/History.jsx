@@ -37,6 +37,16 @@ export default function History() {
     [warehouses, filters.branch_id]
   );
 
+  // 염수(리터)도 톤 환산해서 다른 품목과 같은 단위(톤)로 합산한다.
+  const totalTons = useMemo(
+    () =>
+      rows.reduce((sum, r) => {
+        const qty = r.type === "convert" ? Math.abs(r.delta) : r.quantity;
+        return sum + qty * r.item_to_ton_factor;
+      }, 0),
+    [rows]
+  );
+
   useEffect(() => {
     setLoading(true);
     const params = {};
@@ -54,7 +64,18 @@ export default function History() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-slate-800 mb-4">입출고 이력</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <h2 className="text-xl font-bold text-slate-800">입출고 이력</h2>
+        {rows.length > 0 && (
+          <div className="text-sm text-slate-600">
+            합계:{" "}
+            <span className="font-semibold text-slate-800">
+              {totalTons.toLocaleString(undefined, { maximumFractionDigits: 2 })} 톤
+            </span>
+            <span className="text-slate-400"> ({rows.length.toLocaleString()}건)</span>
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
         <select
@@ -178,6 +199,15 @@ export default function History() {
                   <td className="px-4 py-2 text-right font-medium">
                     {r.type === "convert" && r.delta > 0 ? "+" : ""}
                     {(r.type === "convert" ? r.delta : r.quantity).toLocaleString()} {r.item_unit}
+                    {r.item_unit === "리터" && (
+                      <span className="block text-xs font-normal text-slate-400">
+                        (
+                        {(
+                          (r.type === "convert" ? Math.abs(r.delta) : r.quantity) * r.item_to_ton_factor
+                        ).toLocaleString(undefined, { maximumFractionDigits: 2 })}{" "}
+                        톤)
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-2">{r.operator_name || "-"}</td>
                   <td className="px-4 py-2 text-slate-500">{r.memo || "-"}</td>
