@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import client from "../api/client.js";
 import { submitTransaction, submitConversion, submitSpray } from "../offline/sync.js";
+import { pad2 } from "../utils/datetime.js";
 
 const OPERATOR_NAME_KEY = "snow_operator_name";
 
@@ -22,7 +23,15 @@ const SPRAY_OPTIONS = [
 ];
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+// 등록 화면에서 고른 날짜에, 실제로 등록 버튼을 누른 시각(시:분:초)을 붙여
+// 이력조회에서 시간 단위로 검색할 수 있도록 한다.
+function withCurrentTime(dateStr) {
+  const d = new Date();
+  return `${dateStr}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
 
 export default function EntryForm() {
@@ -233,6 +242,7 @@ export default function EntryForm() {
     setMessage(null);
     try {
       let result;
+      const occurredAtWithTime = withCurrentTime(occurredAt);
       if (type === "convert") {
         result = await submitConversion({
           warehouse_id: Number(warehouseId),
@@ -240,7 +250,7 @@ export default function EntryForm() {
           from_item_id: Number(fromItemId),
           to_item_id: Number(toItemId),
           quantity: Number(quantity),
-          occurred_at: occurredAt,
+          occurred_at: occurredAtWithTime,
           memo,
           operator_name: operatorName,
         });
@@ -250,7 +260,7 @@ export default function EntryForm() {
           spray_type: sprayType,
           count: Number(count),
           salt_item_id: Number(saltItemId),
-          occurred_at: occurredAt,
+          occurred_at: occurredAtWithTime,
           memo,
           operator_name: operatorName,
         });
@@ -260,7 +270,7 @@ export default function EntryForm() {
           item_id: Number(itemId),
           type: "in",
           quantity: Number(quantity),
-          occurred_at: occurredAt,
+          occurred_at: occurredAtWithTime,
           memo,
           operator_name: operatorName,
         });

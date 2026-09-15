@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import client from "../api/client.js";
+import { HOURS, formatOccurredAt } from "../utils/datetime.js";
 
 const TYPE_LABEL = { in: "입고", out: "사용", adjust: "조정", convert: "전환" };
 const TYPE_STYLE = {
@@ -12,7 +13,15 @@ const TYPE_STYLE = {
 export default function History() {
   const [branches, setBranches] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
-  const [filters, setFilters] = useState({ branch_id: "", warehouse_id: "", type: "", from: "", to: "" });
+  const [filters, setFilters] = useState({
+    branch_id: "",
+    warehouse_id: "",
+    type: "",
+    from: "",
+    fromHour: "",
+    to: "",
+    toHour: "",
+  });
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,7 +40,12 @@ export default function History() {
   useEffect(() => {
     setLoading(true);
     const params = {};
-    for (const [k, v] of Object.entries(filters)) if (v) params[k] = v;
+    if (filters.branch_id) params.branch_id = filters.branch_id;
+    if (filters.warehouse_id) params.warehouse_id = filters.warehouse_id;
+    if (filters.type) params.type = filters.type;
+    // 시간을 선택하지 않으면 시작은 00시, 끝은 23시(59분59초)까지로 하루 전체를 조회한다.
+    if (filters.from) params.from = `${filters.from}T${filters.fromHour || "00"}:00:00`;
+    if (filters.to) params.to = `${filters.to}T${filters.toHour || "23"}:59:59`;
     client
       .get("/transactions", { params })
       .then((res) => setRows(res.data))
@@ -78,18 +92,46 @@ export default function History() {
           <option value="adjust">조정</option>
           <option value="convert">전환</option>
         </select>
-        <input
-          type="date"
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
-          value={filters.from}
-          onChange={(e) => setFilters({ ...filters, from: e.target.value })}
-        />
-        <input
-          type="date"
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
-          value={filters.to}
-          onChange={(e) => setFilters({ ...filters, to: e.target.value })}
-        />
+        <div className="flex gap-1">
+          <input
+            type="date"
+            className="border border-slate-300 rounded-lg px-2 py-2 text-sm w-full min-w-0"
+            value={filters.from}
+            onChange={(e) => setFilters({ ...filters, from: e.target.value })}
+          />
+          <select
+            className="border border-slate-300 rounded-lg px-1 py-2 bg-white text-sm"
+            value={filters.fromHour}
+            onChange={(e) => setFilters({ ...filters, fromHour: e.target.value })}
+          >
+            <option value="">시작</option>
+            {HOURS.map((h) => (
+              <option key={h} value={h}>
+                {h}시
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex gap-1">
+          <input
+            type="date"
+            className="border border-slate-300 rounded-lg px-2 py-2 text-sm w-full min-w-0"
+            value={filters.to}
+            onChange={(e) => setFilters({ ...filters, to: e.target.value })}
+          />
+          <select
+            className="border border-slate-300 rounded-lg px-1 py-2 bg-white text-sm"
+            value={filters.toHour}
+            onChange={(e) => setFilters({ ...filters, toHour: e.target.value })}
+          >
+            <option value="">종료</option>
+            {HOURS.map((h) => (
+              <option key={h} value={h}>
+                {h}시
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
@@ -122,7 +164,7 @@ export default function History() {
             ) : (
               rows.map((r) => (
                 <tr key={r.id} className="border-b last:border-0">
-                  <td className="px-4 py-2 whitespace-nowrap">{r.occurred_at}</td>
+                  <td className="px-4 py-2 whitespace-nowrap">{formatOccurredAt(r.occurred_at)}</td>
                   <td className="px-4 py-2">{r.branch_name}</td>
                   <td className="px-4 py-2">{r.warehouse_name}</td>
                   <td className="px-4 py-2">

@@ -9,6 +9,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import client from "../api/client.js";
+import { formatOccurredAt } from "../utils/datetime.js";
 
 const TYPE_LABEL = { in: "입고", out: "사용", adjust: "조정", convert: "전환" };
 
@@ -50,7 +51,7 @@ export default function Dashboard() {
         />
         <StatCard
           label="최근 등록"
-          value={data.recent_transactions[0]?.occurred_at || "-"}
+          value={formatOccurredAt(data.recent_transactions[0]?.occurred_at)}
         />
       </div>
 
