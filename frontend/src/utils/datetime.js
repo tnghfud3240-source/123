@@ -2,6 +2,18 @@ export function pad2(n) {
   return String(n).padStart(2, "0");
 }
 
+export function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+// 선택한 날짜에, 실제 등록 버튼을 누른 시각(시:분:초)을 붙여
+// 이력조회 등에서 시간 단위로 검색할 수 있도록 한다.
+export function withCurrentTime(dateStr) {
+  const d = new Date();
+  return `${dateStr}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
 // 00~23 두 자리 문자열 배열 ("00", "01", ... "23")
 export const HOURS = Array.from({ length: 24 }, (_, h) => pad2(h));
 

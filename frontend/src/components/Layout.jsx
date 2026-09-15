@@ -14,6 +14,7 @@ const SETTINGS_ITEMS = [
   { to: "/admin/branches", label: "지사 관리" },
   { to: "/admin/warehouses", label: "창고 관리" },
   { to: "/admin/items", label: "품목 관리" },
+  { to: "/admin/stock-adjustment", label: "재고 조정" },
 ];
 
 const navLinkClass = ({ isActive }) =>
@@ -76,13 +77,17 @@ export default function Layout() {
             )}
           </div>
         </div>
-        <nav className="flex items-center overflow-x-auto px-2 border-t border-brand-800 bg-brand-800">
-          {NAV_ITEMS.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.to === "/"} className={navLinkClass}>
-              {item.label}
-            </NavLink>
-          ))}
-          <div className="relative ml-auto" ref={settingsRef}>
+        <nav className="flex items-center px-2 border-t border-brand-800 bg-brand-800">
+          <div className="flex overflow-x-auto min-w-0">
+            {NAV_ITEMS.map((item) => (
+              <NavLink key={item.to} to={item.to} end={item.to === "/"} className={navLinkClass}>
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
+          {/* 이 래퍼는 위 스크롤 영역 밖에 있어야, 드롭다운이 overflow-x-auto에 의해
+              잘리지 않고(overflow-x가 auto면 overflow-y도 auto로 취급되는 CSS 규칙 때문) 온전히 보인다. */}
+          <div className="relative ml-auto flex-shrink-0" ref={settingsRef}>
             <button
               type="button"
               onClick={() => setSettingsOpen((v) => !v)}

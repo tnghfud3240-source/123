@@ -9,6 +9,7 @@ import AdminBranches from "./pages/admin/Branches.jsx";
 import AdminWarehouses from "./pages/admin/Warehouses.jsx";
 import AdminItems from "./pages/admin/Items.jsx";
 import AdminStockTargets from "./pages/admin/StockTargets.jsx";
+import StockAdjustment from "./pages/admin/StockAdjustment.jsx";
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="admin/warehouses" element={<AdminWarehouses />} />
         <Route path="admin/items" element={<AdminItems />} />
         <Route path="admin/stock-targets" element={<AdminStockTargets />} />
+        <Route path="admin/stock-adjustment" element={<StockAdjustment />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
