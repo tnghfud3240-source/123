@@ -39,6 +39,10 @@ router.get("/summary", (req, res) => {
     .filter((row) => row.total_tons < row.min_stock_tons)
     .sort((a, b) => b.min_stock_tons - b.total_tons - (a.min_stock_tons - a.total_tons));
   const lowStock = lowStockAll.slice(0, 20);
+  const lowStockCountByCategory = lowStockAll.reduce((acc, row) => {
+    acc[row.category] = (acc[row.category] || 0) + 1;
+    return acc;
+  }, {});
 
   const recent = db
     .prepare(
@@ -59,6 +63,7 @@ router.get("/summary", (req, res) => {
     warehouse_count: warehouseCount,
     item_count: itemCount,
     low_stock_count: lowStockAll.length,
+    low_stock_count_by_category: lowStockCountByCategory,
     stock_by_branch: stockByBranch,
     low_stock: lowStock,
     recent_transactions: recent,

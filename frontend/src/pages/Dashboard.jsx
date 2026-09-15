@@ -46,7 +46,12 @@ export default function Dashboard() {
         <StatCard label="관리 품목" value={`${data.item_count}종`} />
         <StatCard
           label="부족재고 알림"
-          value={`${data.low_stock_count}건`}
+          value={
+            <>
+              <span className="block text-lg">소금 {data.low_stock_count_by_category["소금(제설용)"] || 0}건</span>
+              <span className="block text-lg">염화칼슘 {data.low_stock_count_by_category["염화칼슘"] || 0}건</span>
+            </>
+          }
           accent={data.low_stock_count > 0 ? "text-rose-600" : "text-emerald-600"}
         />
         <StatCard
