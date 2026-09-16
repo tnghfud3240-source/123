@@ -284,7 +284,7 @@ export default function EntryForm() {
 
   return (
     <div className="max-w-md mx-auto">
-      <h2 className="text-xl font-bold text-slate-800 mb-4">입출고 등록</h2>
+      <h2 className="text-xl font-bold text-slate-800 mb-4">입고·사용·출고</h2>
 
       {message && (
         <div

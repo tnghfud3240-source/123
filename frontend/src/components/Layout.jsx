@@ -4,9 +4,9 @@ import { onPendingCountChange } from "../offline/sync.js";
 
 const NAV_ITEMS = [
   { to: "/", label: "대시보드" },
-  { to: "/entry", label: "입출고 등록" },
-  { to: "/stock", label: "재고 현황" },
+  { to: "/entry", label: "입고·사용·출고" },
   { to: "/history", label: "이력 조회" },
+  { to: "/stock", label: "재고 현황" },
   { to: "/admin/stock-targets", label: "비축기준 관리" },
 ];
 
