@@ -30,6 +30,7 @@ export default function EntryForm() {
   const [branchId, setBranchId] = useState("");
   const [warehouseId, setWarehouseId] = useState("");
   const [type, setType] = useState("in");
+  const [stockRows, setStockRows] = useState([]);
 
   // 입고
   const [categoryId, setCategoryId] = useState("");
@@ -92,6 +93,20 @@ export default function EntryForm() {
       setWarehouseId(String(warehousesInBranch[0]?.id || ""));
     }
   }, [warehousesInBranch, warehouseId]);
+
+  function reloadStock() {
+    if (!warehouseId) {
+      setStockRows([]);
+      return;
+    }
+    client.get("/stock", { params: { warehouse_id: warehouseId } }).then((res) => setStockRows(res.data));
+  }
+
+  useEffect(reloadStock, [warehouseId]);
+
+  function stockFor(id) {
+    return stockRows.find((r) => String(r.item_id) === String(id))?.quantity ?? 0;
+  }
 
   const categories = useMemo(() => {
     const map = new Map();
@@ -272,6 +287,7 @@ export default function EntryForm() {
       setQuantity("");
       setCount("");
       setMemo("");
+      reloadStock();
     } catch (err) {
       setMessage({ type: "error", text: err.response?.data?.error || "저장에 실패했습니다." });
     } finally {
@@ -389,6 +405,15 @@ export default function EntryForm() {
               </div>
             </div>
 
+            {itemId && (
+              <p className="text-sm text-slate-500">
+                현재 재고:{" "}
+                <span className="font-semibold text-slate-700">
+                  {stockFor(itemId).toLocaleString()} {itemsInCategory.find((it) => String(it.id) === itemId)?.unit}
+                </span>
+              </p>
+            )}
+
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">수량</label>
               <input
@@ -466,6 +491,22 @@ export default function EntryForm() {
               </div>
             </div>
 
+            <p className="text-sm text-slate-500">
+              현재 재고 — 염화칼슘(염수):{" "}
+              <span className="font-semibold text-slate-700">
+                {stockFor(brineItem?.id).toLocaleString()} {brineItem?.unit}
+              </span>
+              {saltItemId && (
+                <>
+                  {" · "}
+                  소금({saltItem?.name}):{" "}
+                  <span className="font-semibold text-slate-700">
+                    {stockFor(saltItemId).toLocaleString()} {saltItem?.unit}
+                  </span>
+                </>
+              )}
+            </p>
+
             {sprayPreview && (
               <p className="text-sm text-slate-500 text-center">
                 → 사용 예정{" "}
@@ -522,6 +563,15 @@ export default function EntryForm() {
                 )}
               </div>
             </div>
+
+            {fromItem && (
+              <p className="text-sm text-slate-500">
+                현재 재고 ({fromItem.name}):{" "}
+                <span className="font-semibold text-slate-700">
+                  {stockFor(fromItemId).toLocaleString()} {fromItem.unit}
+                </span>
+              </p>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
