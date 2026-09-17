@@ -140,9 +140,16 @@ const SPRAY_LABELS = { preliminary: "예비살포", main: "본살포" };
 const SPRAY_CALCIUM_BRINE_LITERS = { preliminary: 1500, main: 3000 };
 const SPRAY_SALT_TONS_PER_UNIT = { preliminary: 4, main: 8 };
 
+function currentStockTons(warehouseId, item) {
+  const row = db
+    .prepare("SELECT COALESCE(SUM(delta), 0) AS qty FROM transactions WHERE warehouse_id = ? AND item_id = ?")
+    .get(warehouseId, item.id);
+  return row.qty * item.to_ton_factor;
+}
+
 function insertSpray(payload) {
-  const { client_id, warehouse_id, spray_type, count, salt_item_id, memo, operator_name, occurred_at } = payload;
-  if (!client_id || !warehouse_id || !spray_type || count == null || !salt_item_id || !occurred_at) {
+  const { client_id, warehouse_id, spray_type, count, memo, operator_name, occurred_at } = payload;
+  if (!client_id || !warehouse_id || !spray_type || count == null || !occurred_at) {
     return { error: "필수 항목이 누락되었습니다.", client_id };
   }
   if (!SPRAY_CALCIUM_BRINE_LITERS[spray_type]) {
@@ -154,32 +161,39 @@ function insertSpray(payload) {
   }
 
   const calciumClientId = `${client_id}:calcium`;
+  const gaepoClientId = `${client_id}:salt-gaepo`;
+  const tonbackClientId = `${client_id}:salt-tonback`;
   const existing = db.prepare("SELECT * FROM transactions WHERE client_id = ?").get(calciumClientId);
   if (existing) {
-    const saltRow = db
-      .prepare("SELECT * FROM transactions WHERE client_id = ?")
-      .get(`${client_id}:salt`);
-    return { status: "duplicate", transactions: [existing, saltRow].filter(Boolean) };
+    const saltRows = db
+      .prepare("SELECT * FROM transactions WHERE client_id IN (?, ?)")
+      .all(gaepoClientId, tonbackClientId);
+    return { status: "duplicate", transactions: [existing, ...saltRows] };
   }
 
   const calciumItem = db
     .prepare("SELECT * FROM items WHERE category = ? AND name = ?")
     .get("염화칼슘", "염수");
-  const saltItem = db.prepare("SELECT * FROM items WHERE id = ?").get(salt_item_id);
+  const gaepoItem = db.prepare("SELECT * FROM items WHERE category = ? AND name = ?").get("소금(제설용)", "개포");
+  const tonbackItem = db.prepare("SELECT * FROM items WHERE category = ? AND name = ?").get("소금(제설용)", "톤백");
   if (!calciumItem) {
     return { error: "염화칼슘 염수 품목을 찾을 수 없습니다. 품목 관리에서 확인하세요.", client_id };
   }
-  if (!saltItem) {
-    return { error: "품목을 찾을 수 없습니다.", client_id };
-  }
-  if (saltItem.category !== "소금(제설용)") {
-    return { error: "소금(제설용) 형태를 선택하세요.", client_id };
+  if (!gaepoItem || !tonbackItem) {
+    return { error: "소금(제설용) 톤백/개포 품목을 찾을 수 없습니다. 품목 관리에서 확인하세요.", client_id };
   }
 
   const calciumQty = countNum * SPRAY_CALCIUM_BRINE_LITERS[spray_type];
-  const saltQty = (countNum * SPRAY_SALT_TONS_PER_UNIT[spray_type]) / saltItem.to_ton_factor;
+  const totalSaltTons = countNum * SPRAY_SALT_TONS_PER_UNIT[spray_type];
   const label = `${SPRAY_LABELS[spray_type]} ${countNum}대${memo ? " · " + memo : ""}`;
   const calcium_item_id = calciumItem.id;
+
+  // 소금은 개포 재고를 먼저 소진하고, 모자란 만큼만 톤백에서 차감한다.
+  const gaepoStockTons = Math.max(currentStockTons(warehouse_id, gaepoItem), 0);
+  const gaepoUseTons = Math.min(totalSaltTons, gaepoStockTons);
+  const tonbackUseTons = totalSaltTons - gaepoUseTons;
+  const gaepoQty = gaepoUseTons / gaepoItem.to_ton_factor;
+  const tonbackQty = tonbackUseTons / tonbackItem.to_ton_factor;
 
   try {
     db.exec("BEGIN");
@@ -190,19 +204,35 @@ function insertSpray(payload) {
          VALUES (?, ?, ?, 'out', ?, ?, ?, ?, ?)`
       )
       .run(calciumClientId, warehouse_id, calcium_item_id, calciumQty, -calciumQty, label, operator_name || null, occurred_at);
-    const infoSalt = db
-      .prepare(
-        `INSERT INTO transactions
-          (client_id, warehouse_id, item_id, type, quantity, delta, memo, operator_name, occurred_at)
-         VALUES (?, ?, ?, 'out', ?, ?, ?, ?, ?)`
-      )
-      .run(`${client_id}:salt`, warehouse_id, salt_item_id, saltQty, -saltQty, label, operator_name || null, occurred_at);
+
+    const saltTransactions = [];
+    if (gaepoQty > 0) {
+      const infoGaepo = db
+        .prepare(
+          `INSERT INTO transactions
+            (client_id, warehouse_id, item_id, type, quantity, delta, memo, operator_name, occurred_at)
+           VALUES (?, ?, ?, 'out', ?, ?, ?, ?, ?)`
+        )
+        .run(gaepoClientId, warehouse_id, gaepoItem.id, gaepoQty, -gaepoQty, label, operator_name || null, occurred_at);
+      saltTransactions.push(db.prepare("SELECT * FROM transactions WHERE id = ?").get(infoGaepo.lastInsertRowid));
+    }
+    if (tonbackQty > 0) {
+      const infoTonback = db
+        .prepare(
+          `INSERT INTO transactions
+            (client_id, warehouse_id, item_id, type, quantity, delta, memo, operator_name, occurred_at)
+           VALUES (?, ?, ?, 'out', ?, ?, ?, ?, ?)`
+        )
+        .run(tonbackClientId, warehouse_id, tonbackItem.id, tonbackQty, -tonbackQty, label, operator_name || null, occurred_at);
+      saltTransactions.push(db.prepare("SELECT * FROM transactions WHERE id = ?").get(infoTonback.lastInsertRowid));
+    }
+
     db.exec("COMMIT");
     return {
       status: "created",
       transactions: [
         db.prepare("SELECT * FROM transactions WHERE id = ?").get(infoCalcium.lastInsertRowid),
-        db.prepare("SELECT * FROM transactions WHERE id = ?").get(infoSalt.lastInsertRowid),
+        ...saltTransactions,
       ],
     };
   } catch (e) {

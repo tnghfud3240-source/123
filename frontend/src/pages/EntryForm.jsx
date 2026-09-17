@@ -37,10 +37,10 @@ export default function EntryForm() {
   const [itemId, setItemId] = useState("");
   const [quantity, setQuantity] = useState("");
 
-  // 출고 (예비살포/본살포) — 염화칼슘은 항상 염수로 고정 차감되어 형태 선택이 없음
+  // 출고 (예비살포/본살포) — 염화칼슘은 항상 염수로, 소금은 개포 우선(부족분만 톤백)으로
+  // 고정 차감되어 형태를 직접 고를 필요가 없음
   const [sprayType, setSprayType] = useState("preliminary");
   const [count, setCount] = useState("");
-  const [saltItemId, setSaltItemId] = useState("");
 
   // 전환 (같은 창고 또는 다른 창고/지사로)
   const [fromItemId, setFromItemId] = useState("");
@@ -149,29 +149,32 @@ export default function EntryForm() {
     }
   }, [type, itemsInCategory, itemId]);
 
-  // 출고: 소금(제설용) 형태 선택 목록 및 기본값. 염화칼슘은 항상 염수(리터)로 고정 차감.
-  const saltItems = categories.get("소금(제설용)") || [];
+  // 출고: 염화칼슘은 항상 염수(리터)로, 소금은 개포 재고를 먼저 쓰고
+  // 모자란 만큼만 톤백에서 차감한다(형태를 직접 고르지 않음).
   const brineItem = useMemo(
     () => items.find((it) => it.category === "염화칼슘" && it.name === "염수"),
     [items]
   );
-
-  useEffect(() => {
-    if (type !== "out") return;
-    if (!saltItems.some((it) => String(it.id) === saltItemId)) {
-      setSaltItemId(String(saltItems[0]?.id || ""));
-    }
-  }, [type, saltItems, saltItemId]);
+  const gaepoItem = useMemo(
+    () => items.find((it) => it.category === "소금(제설용)" && it.name === "개포"),
+    [items]
+  );
+  const tonbackItem = useMemo(
+    () => items.find((it) => it.category === "소금(제설용)" && it.name === "톤백"),
+    [items]
+  );
 
   const sprayOption = SPRAY_OPTIONS.find((o) => o.value === sprayType);
-  const saltItem = items.find((it) => String(it.id) === saltItemId);
   const sprayPreview = useMemo(() => {
-    if (!sprayOption || !saltItem || !count) return null;
+    if (!sprayOption || !gaepoItem || !tonbackItem || !count) return null;
     const n = Number(count);
     const calciumQty = n * sprayOption.calciumBrineLiters;
-    const saltQty = (n * sprayOption.saltTons) / saltItem.to_ton_factor;
-    return { calciumQty, saltQty };
-  }, [sprayOption, saltItem, count]);
+    const totalSaltTons = n * sprayOption.saltTons;
+    const gaepoStock = Math.max(stockFor(gaepoItem.id), 0);
+    const gaepoUse = Math.min(totalSaltTons, gaepoStock);
+    const tonbackUse = totalSaltTons - gaepoUse;
+    return { calciumQty, totalSaltTons, gaepoUse, tonbackUse };
+  }, [sprayOption, gaepoItem, tonbackItem, count, stockRows]);
 
   // 전환: 전환 후 형태는 같은 카테고리의 형태(예: 톤백/개포, 톤백/염수)를 모두 보여준다.
   // 전환 전과 같은 형태를 골라도 목적지 창고만 다르면 유효한 이동(형태는 그대로, 창고만 변경)이 된다.
@@ -237,8 +240,8 @@ export default function EntryForm() {
       setMessage({ type: "error", text: "품목과 수량을 확인하세요." });
       return;
     }
-    if (type === "out" && (!saltItemId || !count || Number(count) <= 0)) {
-      setMessage({ type: "error", text: "형태와 대수를 확인하세요." });
+    if (type === "out" && (!count || Number(count) <= 0)) {
+      setMessage({ type: "error", text: "대수를 확인하세요." });
       return;
     }
 
@@ -263,7 +266,6 @@ export default function EntryForm() {
           warehouse_id: Number(warehouseId),
           spray_type: sprayType,
           count: Number(count),
-          salt_item_id: Number(saltItemId),
           occurred_at: occurredAtWithTime,
           memo,
           operator_name: operatorName,
@@ -468,43 +470,25 @@ export default function EntryForm() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">염화칼슘 형태</label>
-                <div className="w-full border border-slate-200 bg-slate-100 rounded-lg px-3 py-3 text-base text-slate-500">
-                  염수 (리터) 고정
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">소금 형태</label>
-                <select
-                  className="w-full border border-slate-300 rounded-lg px-3 py-3 text-base bg-white"
-                  value={saltItemId}
-                  onChange={(e) => setSaltItemId(e.target.value)}
-                >
-                  {saltItems.map((it) => (
-                    <option key={it.id} value={it.id}>
-                      {it.name} ({it.unit})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            <p className="text-xs text-slate-500">
+              소금은 개포 재고를 먼저 쓰고, 모자란 만큼만 톤백에서 자동으로 차감됩니다.
+            </p>
 
             <p className="text-sm text-slate-500">
               현재 재고 — 염화칼슘(염수):{" "}
               <span className="font-semibold text-slate-700">
                 {stockFor(brineItem?.id).toLocaleString()} {brineItem?.unit}
               </span>
-              {saltItemId && (
-                <>
-                  {" · "}
-                  소금({saltItem?.name}):{" "}
-                  <span className="font-semibold text-slate-700">
-                    {stockFor(saltItemId).toLocaleString()} {saltItem?.unit}
-                  </span>
-                </>
-              )}
+              {" · "}
+              소금(개포):{" "}
+              <span className="font-semibold text-slate-700">
+                {stockFor(gaepoItem?.id).toLocaleString()} {gaepoItem?.unit}
+              </span>
+              {" · "}
+              소금(톤백):{" "}
+              <span className="font-semibold text-slate-700">
+                {stockFor(tonbackItem?.id).toLocaleString()} {tonbackItem?.unit}
+              </span>
             </p>
 
             {sprayPreview && (
@@ -516,7 +500,14 @@ export default function EntryForm() {
                 </span>
                 {" · "}
                 <span className="font-semibold text-rose-700">
-                  소금 {sprayPreview.saltQty.toLocaleString(undefined, { maximumFractionDigits: 3 })} {saltItem?.unit}
+                  소금 {sprayPreview.totalSaltTons.toLocaleString(undefined, { maximumFractionDigits: 3 })} 톤
+                </span>
+                <br />
+                <span className="text-xs text-slate-400">
+                  (개포 {sprayPreview.gaepoUse.toLocaleString(undefined, { maximumFractionDigits: 3 })}톤
+                  {sprayPreview.tonbackUse > 0 &&
+                    ` + 톤백 ${sprayPreview.tonbackUse.toLocaleString(undefined, { maximumFractionDigits: 3 })}톤`}
+                  )
                 </span>
               </p>
             )}
