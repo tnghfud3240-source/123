@@ -3,6 +3,10 @@ const db = require("../db");
 
 const router = express.Router();
 
+// 비축기준에 실제로 미달하기 전에 담당자가 미리 알 수 있도록, 비축기준의 20%를
+// 가산한 값을 경고 기준으로 삼아 재고부족을 사전에 예고한다.
+const EARLY_WARNING_RATIO = 1.2;
+
 router.get("/summary", (req, res) => {
   const branchCount = db.prepare("SELECT COUNT(*) c FROM branches").get().c;
   const warehouseCount = db.prepare("SELECT COUNT(*) c FROM warehouses").get().c;
@@ -33,7 +37,7 @@ router.get("/summary", (req, res) => {
   }));
 
   const lowStockAll = branchCategoryTotals
-    .filter((row) => row.total_tons < row.min_stock_tons)
+    .filter((row) => row.total_tons < row.min_stock_tons * EARLY_WARNING_RATIO)
     .sort((a, b) => b.min_stock_tons - b.total_tons - (a.min_stock_tons - a.total_tons));
   const lowStock = lowStockAll.slice(0, 20);
   const lowStockCountByCategory = lowStockAll.reduce((acc, row) => {

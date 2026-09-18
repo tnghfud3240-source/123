@@ -56,7 +56,7 @@ export default function Dashboard() {
         <StatCard label="관리 창고" value={`${data.warehouse_count}개`} />
         <StatCard label="관리 품목" value={`${data.item_count}종`} />
         <StatCard
-          label="부족재고 알림"
+          label="재고부족 사전예고"
           value={
             <>
               <span className="block text-lg">소금 {data.low_stock_count_by_category["소금(제설용)"] || 0}건</span>
@@ -95,23 +95,36 @@ export default function Dashboard() {
       <div className="grid sm:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="px-4 py-3 font-semibold text-slate-700 border-b bg-rose-50">
-            부족재고 알림
+            재고부족 사전예고
           </div>
+          <p className="px-4 pt-3 text-xs text-slate-400">
+            비축기준의 120% 미만이면 미달 전에 미리 표시됩니다.
+          </p>
           <ul className="divide-y">
             {data.low_stock.length === 0 && (
               <li className="px-4 py-4 text-slate-400 text-sm">부족한 재고가 없습니다.</li>
             )}
-            {data.low_stock.map((l) => (
-              <li key={`${l.branch_id}-${l.category}`} className="px-4 py-3 text-sm flex justify-between">
-                <span>
-                  <span className="font-medium text-slate-800">{l.category}</span>
-                  <span className="text-slate-400"> · {l.branch_name}</span>
-                </span>
-                <span className="text-rose-600 font-semibold">
-                  {l.total_tons.toLocaleString()} / {l.min_stock_tons.toLocaleString()} 톤
-                </span>
-              </li>
-            ))}
+            {data.low_stock.map((l) => {
+              const isBelowMin = l.total_tons < l.min_stock_tons;
+              return (
+                <li key={`${l.branch_id}-${l.category}`} className="px-4 py-3 text-sm flex justify-between items-center">
+                  <span>
+                    <span className="font-medium text-slate-800">{l.category}</span>
+                    <span className="text-slate-400"> · {l.branch_name}</span>
+                    <span
+                      className={`ml-2 px-1.5 py-0.5 rounded text-xs font-semibold ${
+                        isBelowMin ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {isBelowMin ? "미달" : "주의"}
+                    </span>
+                  </span>
+                  <span className={`font-semibold ${isBelowMin ? "text-rose-600" : "text-amber-600"}`}>
+                    {l.total_tons.toLocaleString()} / {l.min_stock_tons.toLocaleString()} 톤
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </div>
 
