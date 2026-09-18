@@ -17,10 +17,10 @@ const TYPE_LABEL = { in: "입고", out: "사용", adjust: "조정", convert: "�
 const CATEGORY_COLOR = { "소금(제설용)": "#2a78d6", 염화칼슘: "#eb6834" };
 const LABEL_STYLE = { fill: "#475569", fontSize: 11 };
 
-function StatCard({ label, value, accent }) {
+function StatCard({ label, value, accent, labelClassName }) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-4">
-      <div className="text-sm text-slate-500">{label}</div>
+      <div className={labelClassName || "text-sm text-slate-500"}>{label}</div>
       <div className={`text-2xl font-bold mt-1 ${accent || "text-slate-800"}`}>{value}</div>
     </div>
   );
@@ -57,6 +57,7 @@ export default function Dashboard() {
         <StatCard label="관리 품목" value={`${data.item_count}종`} />
         <StatCard
           label="재고부족 사전예고"
+          labelClassName="text-xl font-bold text-rose-600"
           value={
             <>
               <span className="block text-lg">소금 {data.low_stock_count_by_category["소금(제설용)"] || 0}건</span>
