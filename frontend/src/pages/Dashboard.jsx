@@ -17,9 +17,9 @@ const TYPE_LABEL = { in: "입고", out: "사용", adjust: "조정", convert: "�
 const CATEGORY_COLOR = { "소금(제설용)": "#2a78d6", 염화칼슘: "#eb6834" };
 const LABEL_STYLE = { fill: "#475569", fontSize: 11 };
 
-function StatCard({ label, value, accent, labelClassName }) {
+function StatCard({ label, value, accent, labelClassName, className }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm p-4">
+    <div className={`bg-white rounded-xl shadow-sm p-4 ${className || ""}`}>
       <div className={labelClassName || "text-sm text-slate-500"}>{label}</div>
       <div className={`text-2xl font-bold mt-1 ${accent || "text-slate-800"}`}>{value}</div>
     </div>
@@ -51,13 +51,14 @@ export default function Dashboard() {
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-slate-800">대시보드</h2>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
         <StatCard label="관리 지사" value={`${data.branch_count}개`} />
         <StatCard label="관리 창고" value={`${data.warehouse_count}개`} />
         <StatCard label="관리 품목" value={`${data.item_count}종`} />
         <StatCard
+          className="col-span-2"
           label="재고부족 사전예고"
-          labelClassName="text-base font-bold text-rose-600 whitespace-nowrap"
+          labelClassName="text-xl font-bold text-rose-600 whitespace-nowrap"
           value={
             <>
               <span className="block text-lg">소금 {data.low_stock_count_by_category["소금(제설용)"] || 0}건</span>
