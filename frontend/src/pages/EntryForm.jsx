@@ -22,6 +22,14 @@ const SPRAY_OPTIONS = [
   { value: "main", label: "본살포", calciumBrineLiters: 3000, saltTons: 8 },
 ];
 
+// 전환 전/후 형태 선택지: 카테고리별 optgroup 대신, 정해진 순서의 평평한 4가지 목록으로 보여준다.
+const CONVERT_ITEM_LABELS = [
+  { category: "소금(제설용)", name: "톤백", label: "소금(톤백)" },
+  { category: "소금(제설용)", name: "개포", label: "소금(개포)(톤)" },
+  { category: "염화칼슘", name: "톤백", label: "염화칼슘(톤백)" },
+  { category: "염화칼슘", name: "염수", label: "염화칼슘(염수)(리터)" },
+];
+
 export default function EntryForm() {
   const [branches, setBranches] = useState([]);
   const [allBranches, setAllBranches] = useState([]);
@@ -176,19 +184,29 @@ export default function EntryForm() {
     return { calciumQty, totalSaltTons, gaepoUse, tonbackUse };
   }, [sprayOption, gaepoItem, tonbackItem, count, stockRows]);
 
-  // 전환: 전환 후 형태는 같은 카테고리의 형태(예: 톤백/개포, 톤백/염수)를 모두 보여준다.
+  // 전환: 전환 전/후 형태는 정해진 순서의 4가지(소금 톤백/개포, 염화칼슘 톤백/염수)로 보여준다.
+  // 전환 후 형태는 전환 전과 같은 카테고리 안에서만 고를 수 있다.
   // 전환 전과 같은 형태를 골라도 목적지 창고만 다르면 유효한 이동(형태는 그대로, 창고만 변경)이 된다.
+  const convertItemOptions = useMemo(
+    () =>
+      CONVERT_ITEM_LABELS.map((spec) => ({
+        ...spec,
+        item: items.find((it) => it.category === spec.category && it.name === spec.name),
+      })).filter((opt) => opt.item),
+    [items]
+  );
+
   useEffect(() => {
     if (type !== "convert") return;
-    if (!items.some((it) => String(it.id) === fromItemId)) {
-      setFromItemId(String(items[0]?.id || ""));
+    if (!convertItemOptions.some((opt) => String(opt.item.id) === fromItemId)) {
+      setFromItemId(String(convertItemOptions[0]?.item.id || ""));
     }
-  }, [type, items, fromItemId]);
+  }, [type, convertItemOptions, fromItemId]);
 
   const fromItem = useMemo(() => items.find((it) => String(it.id) === fromItemId), [items, fromItemId]);
   const toItemOptions = useMemo(
-    () => (fromItem ? items.filter((it) => it.category === fromItem.category) : []),
-    [items, fromItem]
+    () => (fromItem ? convertItemOptions.filter((opt) => opt.item.category === fromItem.category) : []),
+    [convertItemOptions, fromItem]
   );
   const toItem = useMemo(() => items.find((it) => String(it.id) === toItemId), [items, toItemId]);
 
@@ -524,14 +542,10 @@ export default function EntryForm() {
                   value={fromItemId}
                   onChange={(e) => setFromItemId(e.target.value)}
                 >
-                  {[...categories.entries()].map(([category, list]) => (
-                    <optgroup key={category} label={category || "기타"}>
-                      {list.map((it) => (
-                        <option key={it.id} value={it.id}>
-                          {it.name} ({it.unit})
-                        </option>
-                      ))}
-                    </optgroup>
+                  {convertItemOptions.map((opt) => (
+                    <option key={opt.item.id} value={opt.item.id}>
+                      {opt.label}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -543,9 +557,9 @@ export default function EntryForm() {
                   onChange={(e) => setToItemId(e.target.value)}
                   disabled={toItemOptions.length === 0}
                 >
-                  {toItemOptions.map((it) => (
-                    <option key={it.id} value={it.id}>
-                      {it.name} ({it.unit})
+                  {toItemOptions.map((opt) => (
+                    <option key={opt.item.id} value={opt.item.id}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>
