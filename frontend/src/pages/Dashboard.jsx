@@ -111,8 +111,8 @@ export default function Dashboard() {
               return (
                 <li key={`${l.branch_id}-${l.category}`} className="px-4 py-3 text-sm flex justify-between items-center">
                   <span>
-                    <span className="font-medium text-slate-800">{l.category}</span>
-                    <span className="text-slate-400"> · {l.branch_name}</span>
+                    <span className="font-medium text-slate-800">{l.branch_name}</span>
+                    <span className="text-slate-400"> · {l.category}</span>
                     <span
                       className={`ml-2 px-1.5 py-0.5 rounded text-xs font-semibold ${
                         isBelowMin ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"
